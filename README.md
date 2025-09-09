@@ -1,6 +1,6 @@
 # **🤖 AI-CHATBOT 🤖**
 
-**Query your SQLite databases using natural language. No SQL required\!**  
+**Query your SQL databases using natural language. No SQL required\!**  
 An intelligent, browser-based chatbot that allows you to query your local SQLite databases using natural language. No need to write complex SQL—just ask questions in plain English and get answers. The bot is also capable of general conversation, making it a versatile data assistant.  
 <p align="left">
 <img src="src/lib/assets/ss.png" width="650" alt="Screenshot of the AI-Chatbot in action">
