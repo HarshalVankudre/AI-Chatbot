@@ -2,9 +2,9 @@
 
 **Query your SQLite databases using natural language. No SQL required\!**  
 An intelligent, browser-based chatbot that allows you to query your local SQLite databases using natural language. No need to write complex SQL—just ask questions in plain English and get answers. The bot is also capable of general conversation, making it a versatile data assistant.  
-\<p align="center"\>  
-\<img src="src/lib/assets/ss.png" width="650" alt="Screenshot of the AI-Chatbot in action"\>  
-\</p\>
+<p align="left">
+<img src="src/lib/assets/ss.png" width="650" alt="Screenshot of the AI-Chatbot in action">
+</p>
 
 ## **✨ Key Features**
 
@@ -39,5 +39,5 @@ The application uses a multi-step AI chain to process user input:
 
 ## **©️ Copyright & Licensing**
 
-**Copyright (c) 2025 \[Your Name or Company Name Here\]. All Rights Reserved.**  
+**Copyright (c) 2025 \[HARSHAL VANKUDRE\]. All Rights Reserved.**  
 This project is proprietary and closed-source. You may not use, copy, modify, or distribute this software and its source code without express written permission from the copyright holder.
