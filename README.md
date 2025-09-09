@@ -2,7 +2,8 @@
 
 **Query your SQLite databases using natural language. No SQL required\!**  
 An intelligent, browser-based chatbot that allows you to query your local SQLite databases using natural language. No need to write complex SQL—just ask questions in plain English and get answers. The bot is also capable of general conversation, making it a versatile data assistant.  
-*(A screenshot of your application in action would be perfect here\!)*
+![Screenshot of the Intelligent SQL Chatbot in action](src/lib/assets/ss.png)
+
 
 ## **✨ Key Features**
 
@@ -35,6 +36,4 @@ The application uses a multi-step AI chain to process user input:
 * **In-Browser Database:** [SQL.js (SQLite compiled for the web)](https://sql.js.org/)  
 * **Markdown Parsing:** [Marked.js](https://marked.js.org/) & [DOMPurify](https://github.com/cure53/DOMPurify)
 
-## **📄 License**
 
-This project is licensed under the MIT License. See the LICENSE file for details.
