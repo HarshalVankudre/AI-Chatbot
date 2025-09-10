@@ -17,9 +17,10 @@ export const actions = {
     const username = data.get('username');
     const password = data.get('password');
 
-    // Check for an existing active session
+    // FIX: Instead of blocking the login, we will remove the old session
+    // to allow the user to create a new one.
     if (activeSessions.has(username)) {
-      return fail(409, { error: 'This user is already logged in on another device.' });
+      activeSessions.delete(username);
     }
 
     // Check if the user exists and the password is correct
