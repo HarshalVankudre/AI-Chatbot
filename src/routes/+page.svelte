@@ -4,25 +4,19 @@
 	import { chatStore } from '$lib/stores.js';
 	import { uiStrings } from '$lib/utils/config.js';
 	import { loadSqlJs, handleDbFileChange } from '$lib/utils/db.js';
-	import { getAIResponse, generateAdImage } from '$lib/utils/api.js';
+	import { getAIResponse } from '$lib/utils/api.js';
 	let marked;
 	let DOMPurify;
 
-	// API key logic is no longer needed here
 	let userMessage = '';
 	let schemaVisible = false;
 	let chatContainer;
-
-	// New state for ad generation
-	let adPrompt = '';
-	let adImages = [];
 
 	onMount(async () => {
 		marked = window.marked;
 		DOMPurify = window.DOMPurify;
 
 		await loadSqlJs();
-        // Removed logic for loading API key from localStorage
         const savedHistory = localStorage.getItem('chatHistory');
         if (savedHistory) {
             chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory)}));
@@ -34,28 +28,11 @@
 		}
 	});
 
-    // The handleSaveKey function is no longer needed and has been removed.
 	async function handleSubmit() {
-		// FIX: The check for a database is removed from here.
-		// The API logic will handle prompting the user if they try a DB query.
 		if (userMessage.trim() && !$chatStore.isModelRunning) {
 			const messageToSend = userMessage;
 			userMessage = '';
 			await getAIResponse(messageToSend);
-		}
-	}
-
-	async function handleAdSubmit() {
-		if (adImages.length === 0) {
-			chatStore.addMessage('assistant', 'Please upload at least one product image.');
-			return;
-		}
-		if (adPrompt.trim() && !$chatStore.isModelRunning) {
-			const prompt = adPrompt;
-			const files = Array.from(adImages);
-			adPrompt = '';
-			adImages = [];
-			await generateAdImage(prompt, files);
 		}
 	}
 
@@ -94,8 +71,8 @@
 		</div>
 
 		<div class="p-4 border-b border-gray-200 space-y-4">
-            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-				<label for="db-file-input" class="block text-sm font-medium text-gray-700 mb-2">Load your database file (.sqlite, .db)</label>
+			<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+				<label for="db-file-input" class="block text-sm font-medium text-gray-700 mb-2">{$chatStore.strings.dbLabel}</label>
 				<input
                     type="file"
                     id="db-file-input"
@@ -108,8 +85,7 @@ hover:file:bg-blue-200"
 					<p class="text-xs mt-2 {$chatStore.dbStatus.color}">{$chatStore.dbStatus.text}</p>
 					{#if $chatStore.dbSchema}
 						<button on:click={() => schemaVisible = !schemaVisible} class="text-xs text-blue-600 hover:underline mt-2">
-							{schemaVisible ?
-$chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
+							{schemaVisible ? $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
 						</button>
 					{/if}
 				</div>
@@ -118,14 +94,6 @@ $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
 						<pre class="text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">{$chatStore.dbSchema}</pre>
 					</div>
 				{/if}
-			</div>
-			<div class="p-4 bg-green-50 border border-green-200 rounded-lg">
-				<h3 class="text-sm font-medium text-gray-700 mb-2">Product Ad Generation</h3>
-				<div class="space-y-2">
-					<textarea bind:value={adPrompt} rows="2" placeholder="Describe the ad you want to create..." class="w-full p-2 border border-gray-300 rounded-md"></textarea>
-					<input type="file" bind:files={adImages} multiple accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200"/>
-					<button on:click={handleAdSubmit} disabled={$chatStore.isModelRunning} class="w-full py-2 font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400">Generate Ad</button>
-				</div>
 			</div>
 		</div>
 
@@ -139,8 +107,7 @@ $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
 						<pre><code>{msg.content}</code></pre>
 					{:else if msg.type === 'image'}
 						<img src={msg.content} alt="Generated" class="rounded-lg"/>
-					{:else if msg.role ===
-'user'}
+					{:else if msg.role === 'user'}
 						{msg.content}
 					{:else}
 						{#if browser && marked && DOMPurify}
@@ -158,7 +125,7 @@ $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
 					bind:value={userMessage}
 					class="flex-grow w-full p-3 border border-gray-300 rounded-full"
 					autocomplete="off"
-					placeholder={$chatStore.db ? $chatStore.strings.inputPlaceholder : $chatStore.strings.inputPlaceholderDisabled}
+					placeholder={$chatStore.strings.inputPlaceholder}
 					disabled={$chatStore.isModelRunning}
 				/>
 				<button
