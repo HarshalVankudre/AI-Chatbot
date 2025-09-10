@@ -1,4 +1,8 @@
+// src/routes/login/+page.server.js
+
 import { fail, redirect } from '@sveltejs/kit';
+// --- NEW: Import from the server module ---
+import { activeSessions } from '$lib/server/session.js';
 
 // --- SIMULATED USER DATABASE ---
 const validUsers = {
@@ -7,17 +11,13 @@ const validUsers = {
   'testuser': 'test'
 };
 
-// --- NEW: Server-side session store ---
-// In a real app, use a more persistent store like Redis or a database.
-const activeSessions = new Map();
-
 export const actions = {
   default: async ({ cookies, request }) => {
     const data = await request.formData();
     const username = data.get('username');
     const password = data.get('password');
 
-    // --- NEW: Check for an existing active session ---
+    // Check for an existing active session
     if (activeSessions.has(username)) {
       return fail(409, { error: 'This user is already logged in on another device.' });
     }
@@ -30,7 +30,7 @@ export const actions = {
     // --- SUCCESSFUL LOGIN ---
     const sessionToken = `session_${username}_${Date.now()}`;
 
-    // --- NEW: Store the active session on the server ---
+    // Store the active session on the server
     activeSessions.set(username, sessionToken);
 
     cookies.set('session_token', sessionToken, {
@@ -44,5 +44,4 @@ export const actions = {
   }
 };
 
-// Export the map so other server files can access it
-export { activeSessions };
+// REMOVED: Do NOT export activeSessions from here.

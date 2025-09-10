@@ -1,10 +1,11 @@
+// src/routes/+page.server.js
+
 import { redirect } from '@sveltejs/kit';
-// --- NEW: Import the active session store ---
-import { activeSessions } from './login/+page.server.js';
+// --- NEW: Import from the server module ---
+import { activeSessions } from '$lib/server/session.js';
 
 export const actions = {
   logout: ({ cookies }) => {
-    // --- NEW: Clear the user's active session ---
     const token = cookies.get('session_token');
     if (token) {
         // Find the username associated with the token to clear it from the map
