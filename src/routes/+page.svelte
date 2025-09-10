@@ -5,7 +5,6 @@
 	import { uiStrings } from '$lib/utils/config.js';
 	import { loadSqlJs, handleDbFileChange } from '$lib/utils/db.js';
 	import { getAIResponse } from '$lib/utils/api.js';
-
 	let marked;
 	let DOMPurify;
 
@@ -25,7 +24,6 @@
             chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory)}));
         }
 	});
-
 	afterUpdate(() => {
 		if (chatContainer) {
 			chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -33,7 +31,6 @@
 	});
 
     // The handleSaveKey function is no longer needed and has been removed.
-
 	async function handleSubmit() {
         // Removed the check for the API key
 		if (!$chatStore.db) {
@@ -49,10 +46,10 @@
 
 	function handleCopy(text, event) {
 		navigator.clipboard.writeText(text);
-        const btn = event.currentTarget;
+		const btn = event.currentTarget;
         const originalText = btn.textContent;
         btn.textContent = $chatStore.strings.copied;
-        setTimeout(() => {
+		setTimeout(() => {
             btn.textContent = originalText;
         }, 1500);
 	}
@@ -66,7 +63,6 @@
 
 <div class="flex flex-col items-center justify-center min-h-screen p-4">
 	<div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-[90vh]">
-		<!-- Header -->
 		<div class="p-4 border-b border-gray-200 text-center rounded-t-2xl bg-gray-50 relative">
 			<h1 class="text-xl font-bold text-gray-800">{$chatStore.strings.title}</h1>
 			<p class="text-sm text-gray-500">{$chatStore.strings.subtitle}</p>
@@ -74,7 +70,7 @@
 				<button on:click={() => chatStore.setLanguage('en')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'en'}>EN</button>
 				<button on:click={() => chatStore.setLanguage('de')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'de'}>DE</button>
                 <form action="?/logout" method="POST" class="ml-2">
-                  <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
+                   <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
                 </form>
 			</div>
 			<div class="absolute top-2 left-2">
@@ -82,23 +78,23 @@
 			</div>
 		</div>
 
-		<!-- Controls -->
 		<div class="p-4 border-b border-gray-200 space-y-4">
-            <!-- The entire API Key input div has been removed from here -->
-			<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
 				<label for="db-file-input" class="block text-sm font-medium text-gray-700 mb-2">Load your database file (.sqlite, .db)</label>
 				<input
                     type="file"
                     id="db-file-input"
                     on:change={handleDbFileChange}
                     accept=".sqlite,.db,.sqlite3"
-                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700
+hover:file:bg-blue-200"
                 />
 				<div class="flex justify-between items-center">
 					<p class="text-xs mt-2 {$chatStore.dbStatus.color}">{$chatStore.dbStatus.text}</p>
 					{#if $chatStore.dbSchema}
 						<button on:click={() => schemaVisible = !schemaVisible} class="text-xs text-blue-600 hover:underline mt-2">
-							{schemaVisible ? $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
+							{schemaVisible ?
+$chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
 						</button>
 					{/if}
 				</div>
@@ -110,7 +106,6 @@
 			</div>
 		</div>
 
-		<!-- Chat Container -->
 		<div bind:this={chatContainer} class="flex-grow p-4 overflow-y-auto flex flex-col space-y-4">
 			{#each $chatStore.conversationHistory as msg, i (i)}
 				<div class="chat-bubble" class:user-bubble={msg.role === 'user'} class:assistant-bubble={msg.role ==='assistant'} class:code-bubble={msg.type === 'code'}>
@@ -119,7 +114,10 @@
 					{:else if msg.type === 'code'}
 						<button class="copy-btn" on:click={(e) => handleCopy(msg.content, e)}>{$chatStore.strings.copy}</button>
 						<pre><code>{msg.content}</code></pre>
-					{:else if msg.role === 'user'}
+					{:else if msg.type === 'image'}
+						<img src={msg.content} alt="Generated Image" class="rounded-lg"/>
+					{:else if msg.role ===
+'user'}
 						{msg.content}
 					{:else}
 						{#if browser && marked && DOMPurify}
@@ -130,14 +128,15 @@
 			{/each}
 		</div>
 
-		<!-- Message Input -->
 		<div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
 			<form on:submit|preventDefault={handleSubmit} class="flex items-center space-x-3">
-				<input type="text" bind:value={userMessage} class="flex-grow w-full p-3 border border-gray-300 rounded-full" autocomplete="off" placeholder={$chatStore.db ? $chatStore.strings.inputPlaceholder : $chatStore.strings.inputPlaceholderDisabled} disabled={!$chatStore.db || $chatStore.isModelRunning} />
-				<button type="submit" class="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center w-12 h-12" disabled={!$chatStore.db || $chatStore.isModelRunning}>
+				<input type="text" bind:value={userMessage} class="flex-grow w-full p-3 border border-gray-300 rounded-full" autocomplete="off" placeholder={$chatStore.db ?
+$chatStore.strings.inputPlaceholder : $chatStore.strings.inputPlaceholderDisabled} disabled={!$chatStore.db || $chatStore.isModelRunning} />
+				<button type="submit" class="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center w-12 h-12" disabled={!$chatStore.db ||
+$chatStore.isModelRunning}>
                     {#if $chatStore.isModelRunning}
                         <svg class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    {:else}
+                   {:else}
 					    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     {/if}
 				</button>
@@ -145,4 +144,3 @@
 		</div>
 	</div>
 </div>
-

@@ -3,32 +3,65 @@ import { chatStore } from '../stores.js';
 import { SELECTED_MODEL, uiStrings } from './config.js';
 
 /**
- * NEW: This function now calls our own secure server endpoint instead of OpenAI directly.
+ * A robust helper function to call our server API endpoints.
+ * It handles non-JSON responses to prevent crashes.
  */
-async function callOpenAI(messages) {
-  const response = await fetch('/api/chat', {
+async function callApi(url, body) {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: SELECTED_MODEL, messages })
+    body: JSON.stringify(body)
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${result.error || 'Unknown error'}`);
+  // Check if the response is JSON before trying to parse it
+  const contentType = response.headers.get("content-type");
+  if (contentType && contentType.indexOf("application/json") !== -1) {
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(`API Error: ${result.error || 'An unknown error occurred'}`);
+    }
+    return result;
+  } else {
+    // If it's not JSON, get the raw text for debugging.
+    const text = await response.text();
+    console.error('Server did not return JSON. Raw response:', text);
+    throw new Error(`The server returned an invalid response. Check the browser console for details.`);
   }
+}
 
+async function callOpenAI(messages) {
+  const result = await callApi('/api/chat', { model: SELECTED_MODEL, messages });
   return result.response;
 }
 
+async function callOpenAIImage(prompt) {
+  const result = await callApi('/api/image', { model: 'dall-e-3', prompt });
+  return result.imageUrl;
+}
 
-// The rest of this file remains largely the same, but no longer needs the apiKey.
+
 export async function getAIResponse(userQuery) {
 	chatStore.update(s => ({ ...s, isModelRunning: true }));
 	chatStore.addMessage('user', userQuery);
 
+    if (userQuery.toLowerCase().startsWith('generate image of')) {
+        const prompt = userQuery.substring('generate image of'.length).trim();
+        try {
+            chatStore.addMessage('assistant', 'Generating image...', 'typing');
+            const imageUrl = await callOpenAIImage(prompt);
+            chatStore.update(s => ({...s, conversationHistory: s.conversationHistory.filter(msg => msg.type !== 'typing')}));
+            chatStore.addMessage('assistant', imageUrl, 'image');
+        } catch (error) {
+            console.error('Error in AI Image Response chain:', error);
+            chatStore.update(s => ({...s, conversationHistory: s.conversationHistory.filter(msg => msg.type !== 'typing')}));
+            chatStore.addMessage('assistant', `Error: ${error.message}`);
+        } finally {
+            chatStore.update(s => ({ ...s, isModelRunning: false }));
+        }
+        return;
+    }
+
 	const state = get(chatStore);
-	// API Key is no longer needed here
 	const { db, dbSchema, conversationHistory, currentLang } = state;
 
 	const addTypingIndicator = (textKey) => chatStore.addMessage('assistant', uiStrings[currentLang][textKey], 'typing');
@@ -60,7 +93,7 @@ export async function getAIResponse(userQuery) {
 
 		addTypingIndicator('sqlGenerating');
 		const textToSqlPrompt = `You are an expert SQLite programmer. Based on the conversation history and schema, write a single, valid SQLite query for the user's LATEST question. Only return the SQL query. Schema: ${dbSchema} Question: "${userQuery}"`;
-		const sqlMessages = [{ role: 'system', content: 'You are an expert SQLite programmer.' }, ...conversationHistory.slice(-6, -1), { role: 'user', content: textToSqlPrompt }];
+		const sqlMessages = [{ role: 'system', content: 'An expert SQLite programmer.' }, ...conversationHistory.slice(-6, -1), { role: 'user', content: textToSqlPrompt }];
 
 		const sqlResponse = await callOpenAI(sqlMessages);
 		let generatedSql = sqlResponse.replace(/^```sql\n?|```$/g, '').trim();
