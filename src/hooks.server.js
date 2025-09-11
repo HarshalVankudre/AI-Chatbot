@@ -6,13 +6,10 @@ export const handle = async ({ event, resolve }) => {
 
   // Protect the root route (chatbot page)
   if (pathname === '/' && !sessionToken) {
-    // If user is not logged in and tries to access chatbot, redirect to login
     throw redirect(303, '/login');
   }
 
-  // Prevent logged-in users from accessing the login page
   if (pathname === '/login' && sessionToken) {
-    // If user is logged in and tries to access login, redirect to chatbot
     throw redirect(303, '/');
   }
 

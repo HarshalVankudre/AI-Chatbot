@@ -43,7 +43,7 @@ pre::-webkit-scrollbar-thumb:hover {
     border-bottom-right-radius: 4px;
 }
 
-.assistant-bubble { /* FIX: Renamed from .ai-bubble */
+.assistant-bubble {
     background-color: #ffffff;
     color: #333;
     align-self: flex-start;
@@ -114,27 +114,50 @@ pre::-webkit-scrollbar-thumb:hover {
     color: white;
 }
 
-/* --- NEW: Table Styling --- */
-.assistant-bubble table { /* FIX: Renamed from .ai-bubble */
+/* --- NEW: Blockquote Styling for Summaries --- */
+.assistant-bubble blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: #4a5568;
+    font-style: italic;
+}
+
+
+/* --- ENHANCED: Table Styling --- */
+.assistant-bubble table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 1em;
     margin-bottom: 1em;
     font-size: 0.9rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden; /* Ensures the border-radius is applied to table corners */
 }
 
-.assistant-bubble th, /* FIX: Renamed from .ai-bubble */
-.assistant-bubble td { /* FIX: Renamed from .ai-bubble */
-    border: 1px solid #dfe2e5;
-    padding: 8px 12px;
+.assistant-bubble th,
+.assistant-bubble td {
+    border: none; /* Remove default borders */
+    padding: 12px 15px;
     text-align: left;
+    border-bottom: 1px solid #e2e8f0;
 }
 
-.assistant-bubble th { /* FIX: Renamed from .ai-bubble */
-    background-color: #f6f8fa;
+.assistant-bubble th {
+    background-color: #f8fafc;
     font-weight: 600;
+    color: #2d3748;
 }
 
-.assistant-bubble tr:nth-child(even) { /* FIX: Renamed from .ai-bubble */
-    background-color: #f6f8fa;
+.assistant-bubble tr {
+    transition: background-color 0.2s;
+}
+
+.assistant-bubble tr:hover {
+    background-color: #f7fafc;
+}
+
+.assistant-bubble tr:last-child td {
+    border-bottom: none;
 }

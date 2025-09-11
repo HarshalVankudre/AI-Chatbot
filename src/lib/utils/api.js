@@ -1,11 +1,9 @@
+// src/lib/utils/api.js
 import { get } from 'svelte/store';
 import { chatStore } from '../stores.js';
 import { SELECTED_MODEL, uiStrings } from './config.js';
+import { createFinalAnswerPrompt } from './prompts.js';
 
-/**
- * A robust helper function to call our server API endpoints.
- * It handles non-JSON responses to prevent crashes.
- */
 async function callApi(url, body) {
   const response = await fetch(url, {
     method: 'POST',
@@ -13,7 +11,6 @@ async function callApi(url, body) {
     body: JSON.stringify(body)
   });
 
-  // Check if the response is JSON before trying to parse it
   const contentType = response.headers.get("content-type");
   if (contentType && contentType.indexOf("application/json") !== -1) {
     const result = await response.json();
@@ -22,23 +19,16 @@ async function callApi(url, body) {
     }
     return result;
   } else {
-    // If it's not JSON, get the raw text for debugging.
     const text = await response.text();
     console.error('Server did not return JSON. Raw response:', text);
     throw new Error(`The server returned an invalid response. Check the browser console for details.`);
   }
 }
 
-async function callOpenAI(messages) {
-  const result = await callApi('/api/chat', { model: SELECTED_MODEL, messages });
-  return result.response;
-}
-
 async function callOpenAIImage(prompt) {
   const result = await callApi('/api/image', { model: 'dall-e-3', prompt });
   return result.imageUrl;
 }
-
 
 export async function getAIResponse(userQuery) {
 	chatStore.update(s => ({ ...s, isModelRunning: true }));
@@ -73,30 +63,30 @@ export async function getAIResponse(userQuery) {
 	};
 
 	try {
-    addTypingIndicator('intentClassification');
-    const intentPrompt = `Classify the user's query as "database_query" or "general_conversation". User's query: "${userQuery}"`;
-    const intent = await callOpenAI([{ role: 'system', content: intentPrompt }]);
-    removeTypingIndicator();
+		addTypingIndicator('intentClassification');
+		const intentPrompt = `Classify the user's query as "database_query" or "general_conversation". User's query: "${userQuery}"`;
+		const intentResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages: [{ role: 'system', content: intentPrompt }] });
+		const intent = intentResult.response.replace(/"/g, '').trim();
+		removeTypingIndicator();
 
-    if (intent.includes('general_conversation')) {
-        const generalPrompt = `You are a friendly chatbot. Continue the conversation naturally. User's last message: "${userQuery}"`;
-        const messages = [...conversationHistory.slice(-6), { role: 'system', content: generalPrompt }];
-        const generalResponse = await callOpenAI(messages);
-        chatStore.addMessage('assistant', generalResponse);
-        return;
-    }
+		if (intent.includes('general_conversation')) {
+			const generalPrompt = `You are a friendly chatbot. Continue the conversation naturally. User's last message: "${userQuery}"`;
+			const messages = [...conversationHistory.slice(-6), { role: 'system', content: generalPrompt }];
+			const generalResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages });
+			chatStore.addMessage('assistant', generalResult.response);
+			return;
+		}
 
-    if (!db) {
-        chatStore.addMessage('assistant', uiStrings[currentLang].dbPrompt);
-        return;
-    }
+		if (!db) {
+			chatStore.addMessage('assistant', uiStrings[currentLang].dbPrompt);
+			return;
+		}
 
 		addTypingIndicator('sqlGenerating');
 		const textToSqlPrompt = `You are an expert SQLite programmer. Based on the conversation history and schema, write a single, valid SQLite query for the user's LATEST question. Only return the SQL query. Schema: ${dbSchema} Question: "${userQuery}"`;
 		const sqlMessages = [{ role: 'system', content: 'An expert SQLite programmer.' }, ...conversationHistory.slice(-6, -1), { role: 'user', content: textToSqlPrompt }];
-
-		const sqlResponse = await callOpenAI(sqlMessages);
-		let generatedSql = sqlResponse.replace(/^```sql\n?|```$/g, '').trim();
+		const sqlResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages: sqlMessages });
+		let generatedSql = sqlResult.response.replace(/^```sql\n?|```$/g, '').trim();
 		removeTypingIndicator();
 		chatStore.addMessage('assistant', generatedSql, 'code');
 
@@ -111,9 +101,8 @@ export async function getAIResponse(userQuery) {
 
 			const fixSqlPrompt = `The SQLite query \`${generatedSql}\` failed with error: "${e.message}". Please correct it. Only return the corrected SQL query.`;
 			const fixMessages = [{ role: 'system', content: 'You are an expert SQLite programmer that corrects faulty queries.' }, { role: 'user', content: fixSqlPrompt }];
-
-			const correctedSqlResponse = await callOpenAI(fixMessages);
-			generatedSql = correctedSqlResponse.replace(/^```sql\n?|```$/g, '').trim();
+			const correctedSqlResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages: fixMessages });
+			generatedSql = correctedSqlResult.response.replace(/^```sql\n?|```$/g, '').trim();
 			chatStore.addMessage('assistant', generatedSql, 'code');
 
 			try {
@@ -127,19 +116,21 @@ export async function getAIResponse(userQuery) {
 		removeTypingIndicator();
 		addTypingIndicator('finalAnswer');
 
-		const sqlToTextPrompt = `You are a helpful AI data analyst. Based on the user's question and the query data, provide a friendly, natural language answer.
-        
-        **Formatting Rules (Very Important):**
-        1.  **Single Value Rule:** If the data is a single value (e.g., one number, one name), respond in a simple sentence. **DO NOT USE A TABLE FOR A SINGLE VALUE.**
-        2.  **Multiple Rows Rule:** If the data contains multiple rows/records, you MUST format the result as a markdown table.
-        
-        User's Question: "${userQuery}"
-        Data from query: ${JSON.stringify(queryResultData)}`;
-		const finalAnswerMessages = [{ role: 'system', content: 'You are a helpful data analyst assistant.' }, ...get(chatStore).conversationHistory.slice(-6), { role: 'user', content: sqlToTextPrompt }];
+		const sqlToTextPrompt = createFinalAnswerPrompt(userQuery, queryResultData);
+		const finalAnswerMessages = [{ role: 'system', content: "You are a helpful data analyst assistant that only responds in JSON." }, { role: 'user', content: sqlToTextPrompt }];
 
-		const aiText = await callOpenAI(finalAnswerMessages);
+		// Send the json_mode flag for this specific call
+		const finalAnswerResult = await callApi('/api/chat', {
+			model: SELECTED_MODEL,
+			messages: finalAnswerMessages,
+			json_mode: true
+		});
+
+		// The client is now responsible for parsing the JSON string
+		const aiJson = JSON.parse(finalAnswerResult.response);
 		removeTypingIndicator();
-		chatStore.addMessage('assistant', aiText);
+
+		chatStore.addMessage('assistant', aiJson, 'structured_response');
 
 	} catch (error) {
 		console.error('Error in AI Response chain:', error);
@@ -147,6 +138,6 @@ export async function getAIResponse(userQuery) {
 		chatStore.addMessage('assistant', `Error: ${error.message}`);
 	} finally {
 		chatStore.update(s => ({ ...s, isModelRunning: false }));
-    localStorage.setItem('chatHistory', JSON.stringify(get(chatStore).conversationHistory));
+		localStorage.setItem('chatHistory', JSON.stringify(get(chatStore).conversationHistory));
 	}
 }

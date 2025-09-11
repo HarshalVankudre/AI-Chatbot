@@ -1,7 +1,6 @@
 // src/routes/+page.server.js
 
 import { redirect } from '@sveltejs/kit';
-// --- NEW: Import from the server module ---
 import { activeSessions } from '$lib/server/session.js';
 
 export const actions = {

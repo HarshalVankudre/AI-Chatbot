@@ -5,23 +5,25 @@
 	import { uiStrings } from '$lib/utils/config.js';
 	import { loadSqlJs, handleDbFileChange } from '$lib/utils/db.js';
 	import { getAIResponse } from '$lib/utils/api.js';
-	let marked;
-	let DOMPurify;
+	import StructuredResponse from '$lib/components/StructuredResponse.svelte';
+
+	// Import the packages directly
+	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 
 	let userMessage = '';
 	let schemaVisible = false;
 	let chatContainer;
 
 	onMount(async () => {
-		marked = window.marked;
-		DOMPurify = window.DOMPurify;
-
+		// The onMount logic for marked and DOMPurify is no longer needed
 		await loadSqlJs();
         const savedHistory = localStorage.getItem('chatHistory');
         if (savedHistory) {
             chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory)}));
         }
 	});
+
 	afterUpdate(() => {
 		if (chatContainer) {
 			chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -62,7 +64,7 @@
 				<button on:click={() => chatStore.setLanguage('en')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'en'}>EN</button>
 				<button on:click={() => chatStore.setLanguage('de')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'de'}>DE</button>
                 <form action="?/logout" method="POST" class="ml-2">
-                   <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
+                    <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
                 </form>
 			</div>
 			<div class="absolute top-2 left-2">
@@ -107,10 +109,12 @@ hover:file:bg-blue-200"
 						<pre><code>{msg.content}</code></pre>
 					{:else if msg.type === 'image'}
 						<img src={msg.content} alt="Generated" class="rounded-lg"/>
+					{:else if msg.type === 'structured_response'}
+						<StructuredResponse response={msg.content} />
 					{:else if msg.role === 'user'}
 						{msg.content}
 					{:else}
-						{#if browser && marked && DOMPurify}
+						{#if browser}
 							{@html DOMPurify.sanitize(marked.parse(msg.content))}
 						{/if}
 					{/if}

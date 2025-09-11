@@ -1,4 +1,4 @@
-export const SELECTED_MODEL = 'gpt-5-nano';
+export const SELECTED_MODEL = 'gpt-5';
 
 export const uiStrings = {
     en: {
