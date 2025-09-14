@@ -30,6 +30,19 @@ async function callOpenAIImage(prompt) {
   return result.imageUrl;
 }
 
+
+// *** FIX: Add a function to sanitize conversation history for the API ***
+const sanitizeHistoryForApi = (history) => {
+    return history.map(msg => {
+        if (typeof msg.content === 'string') {
+            return { role: msg.role, content: msg.content };
+        }
+        // If content is an object (like our structured_response), stringify it.
+        return { role: msg.role, content: JSON.stringify(msg.content) };
+    });
+};
+
+
 export async function getAIResponse(userQuery) {
 	chatStore.update(s => ({ ...s, isModelRunning: true }));
 	chatStore.addMessage('user', userQuery);
@@ -52,7 +65,7 @@ export async function getAIResponse(userQuery) {
     }
 
 	const state = get(chatStore);
-	const { db, dbSchema, conversationHistory, currentLang } = state;
+	const { dbSchema, conversationHistory, currentLang } = state;
 
 	const addTypingIndicator = (textKey) => chatStore.addMessage('assistant', uiStrings[currentLang][textKey], 'typing');
 	const removeTypingIndicator = () => {
@@ -71,20 +84,28 @@ export async function getAIResponse(userQuery) {
 
 		if (intent.includes('general_conversation')) {
 			const generalPrompt = `You are a friendly chatbot. Continue the conversation naturally. User's last message: "${userQuery}"`;
-			const messages = [...conversationHistory.slice(-6), { role: 'system', content: generalPrompt }];
+
+			// *** FIX: Sanitize the history slice before sending ***
+			const sanitizedGeneralHistory = sanitizeHistoryForApi(conversationHistory.slice(-6));
+			const messages = [...sanitizedGeneralHistory, { role: 'system', content: generalPrompt }];
+
 			const generalResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages });
 			chatStore.addMessage('assistant', generalResult.response);
 			return;
 		}
 
-		if (!db) {
-			chatStore.addMessage('assistant', uiStrings[currentLang].dbPrompt);
+		if (!dbSchema) {
+			chatStore.addMessage('assistant', "Database schema is not loaded. Please wait a moment and try again.");
 			return;
 		}
 
 		addTypingIndicator('sqlGenerating');
-		const textToSqlPrompt = `You are an expert SQLite programmer. Based on the conversation history and schema, write a single, valid SQLite query for the user's LATEST question. Only return the SQL query. Schema: ${dbSchema} Question: "${userQuery}"`;
-		const sqlMessages = [{ role: 'system', content: 'An expert SQLite programmer.' }, ...conversationHistory.slice(-6, -1), { role: 'user', content: textToSqlPrompt }];
+		const textToSqlPrompt = `You are an expert MariaDB/MySQL programmer. Based on the conversation history and schema, write a single, valid SQL query for the user's LATEST question. Only return the SQL query. Schema: ${dbSchema} Question: "${userQuery}"`;
+
+		// *** FIX: Sanitize the history slice before sending ***
+		const sanitizedSqlHistory = sanitizeHistoryForApi(conversationHistory.slice(-6, -1));
+		const sqlMessages = [{ role: 'system', content: 'An expert MariaDB/MySQL programmer.' }, ...sanitizedSqlHistory, { role: 'user', content: textToSqlPrompt }];
+
 		const sqlResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages: sqlMessages });
 		let generatedSql = sqlResult.response.replace(/^```sql\n?|```$/g, '').trim();
 		removeTypingIndicator();
@@ -93,21 +114,19 @@ export async function getAIResponse(userQuery) {
 		let queryResultData;
 		try {
 			addTypingIndicator('sqlExecuting');
-			const results = db.exec(generatedSql);
-			queryResultData = results.length > 0 ? results.map(r => ({ columns: r.columns, values: r.values })) : 'Query executed successfully, but returned no data.';
+			queryResultData = await callApi('/api/db', { query: generatedSql });
 		} catch (e) {
 			removeTypingIndicator();
 			chatStore.addMessage('assistant', uiStrings[currentLang].sqlCorrection, 'text');
 
-			const fixSqlPrompt = `The SQLite query \`${generatedSql}\` failed with error: "${e.message}". Please correct it. Only return the corrected SQL query.`;
-			const fixMessages = [{ role: 'system', content: 'You are an expert SQLite programmer that corrects faulty queries.' }, { role: 'user', content: fixSqlPrompt }];
+			const fixSqlPrompt = `The SQL query \`${generatedSql}\` failed with error: "${e.message}". Please correct it. Only return the corrected SQL query.`;
+			const fixMessages = [{ role: 'system', content: 'You are an expert MariaDB/MySQL programmer that corrects faulty queries.' }, { role: 'user', content: fixSqlPrompt }];
 			const correctedSqlResult = await callApi('/api/chat', { model: SELECTED_MODEL, messages: fixMessages });
 			generatedSql = correctedSqlResult.response.replace(/^```sql\n?|```$/g, '').trim();
 			chatStore.addMessage('assistant', generatedSql, 'code');
 
 			try {
-				const results = db.exec(generatedSql);
-				queryResultData = results.length > 0 ? results.map(r => ({ columns: r.columns, values: r.values })) : "Query executed successfully, but returned no data.";
+				queryResultData = await callApi('/api/db', { query: generatedSql });
 			} catch (finalError) {
 				 throw new Error(uiStrings[currentLang].sqlCorrectionFailed(generatedSql));
 			}
@@ -119,14 +138,12 @@ export async function getAIResponse(userQuery) {
 		const sqlToTextPrompt = createFinalAnswerPrompt(userQuery, queryResultData);
 		const finalAnswerMessages = [{ role: 'system', content: "You are a helpful data analyst assistant that only responds in JSON." }, { role: 'user', content: sqlToTextPrompt }];
 
-		// Send the json_mode flag for this specific call
 		const finalAnswerResult = await callApi('/api/chat', {
 			model: SELECTED_MODEL,
 			messages: finalAnswerMessages,
 			json_mode: true
 		});
 
-		// The client is now responsible for parsing the JSON string
 		const aiJson = JSON.parse(finalAnswerResult.response);
 		removeTypingIndicator();
 

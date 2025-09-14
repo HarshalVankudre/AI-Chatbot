@@ -40,10 +40,11 @@ export async function POST({ request }) {
     }
 
     const result = await response.json();
-    // Get the raw content string from OpenAI's response
-    const aiResponse = result.choices[0].message.content;
 
-    // Send the raw string back to the client
+    // *** FIX: Provide a fallback to an empty string if the content is null ***
+    const aiResponse = result.choices[0].message.content || '';
+
+    // Send the sanitized string back to the client
     return json({ response: aiResponse });
 
   } catch (error) {

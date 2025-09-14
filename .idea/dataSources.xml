@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="MariaDB (CloudSQL Proxy)" uuid="22c6ddc8-dbe9-4e10-8325-4d8fa065bc57">
-      <driver-ref>mariadb.cloud_sql</driver-ref>
+    <data-source source="LOCAL" name="my-database@34.159.129.130" uuid="9b869831-7ff9-4fcf-93cb-50d8f3693962">
+      <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
-      <configured-by-url>true</configured-by-url>
-      <jdbc-driver>org.mariadb.jdbc.Driver</jdbc-driver>
-      <jdbc-url>mariadb --host serverless-northeurope.sysp0000.db3.skysql.com --port 4077 --user dbpbf32764715 -p --ssl-verify-server-cert</jdbc-url>
+      <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:mysql://34.159.129.130:3306/my-database</jdbc-url>
+      <jdbc-additional-properties>
+        <property name="EXTERNAL_DATA_PATH" value="C:\Users\harsh\PycharmProjects\AI-Chatbot\external-data-my_database_34_159_129_130.xml" />
+      </jdbc-additional-properties>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

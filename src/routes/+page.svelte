@@ -1,29 +1,48 @@
 <script>
 	import { onMount, afterUpdate } from 'svelte';
+	// *** FIX: Import 'get' from svelte/store ***
+	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { chatStore } from '$lib/stores.js';
 	import { uiStrings } from '$lib/utils/config.js';
-	import { loadSqlJs, handleDbFileChange } from '$lib/utils/db.js';
 	import { getAIResponse } from '$lib/utils/api.js';
 	import StructuredResponse from '$lib/components/StructuredResponse.svelte';
 
 	// Import the packages directly
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
-
 	let userMessage = '';
 	let schemaVisible = false;
 	let chatContainer;
-
 	onMount(async () => {
-		// The onMount logic for marked and DOMPurify is no longer needed
-		await loadSqlJs();
+		// Fetch the schema from our new server endpoint
+		try {
+			// *** FIX: Use get(chatStore) to access strings directly ***
+			const strings = get(chatStore).strings;
+			chatStore.setDbStatus(strings.dbReading, 'text-orange-500');
+
+			const response = await fetch('/api/db');
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || 'Failed to fetch schema');
+			}
+			const schemaInfo = await response.json();
+			chatStore.update(s => ({ ...s, dbSchema: schemaInfo.schema }));
+
+			// *** FIX: Use the directly accessed 'strings' object ***
+			chatStore.setDbStatus(strings.dbSuccess(schemaInfo.tableNames), 'text-green-600');
+
+		} catch (error) {
+			console.error("Failed to load schema", error);
+			const strings = get(chatStore).strings;
+			chatStore.setDbStatus(strings.dbError, 'text-red-600');
+		}
+
         const savedHistory = localStorage.getItem('chatHistory');
         if (savedHistory) {
             chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory)}));
         }
 	});
-
 	afterUpdate(() => {
 		if (chatContainer) {
 			chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -64,7 +83,7 @@
 				<button on:click={() => chatStore.setLanguage('en')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'en'}>EN</button>
 				<button on:click={() => chatStore.setLanguage('de')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'de'}>DE</button>
                 <form action="?/logout" method="POST" class="ml-2">
-                    <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
+                     <button type="submit" class="px-3 py-1 text-sm font-medium text-red-600 border rounded-md hover:bg-red-50">Logout</button>
                 </form>
 			</div>
 			<div class="absolute top-2 left-2">
@@ -74,15 +93,6 @@
 
 		<div class="p-4 border-b border-gray-200 space-y-4">
 			<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-				<label for="db-file-input" class="block text-sm font-medium text-gray-700 mb-2">{$chatStore.strings.dbLabel}</label>
-				<input
-                    type="file"
-                    id="db-file-input"
-                    on:change={handleDbFileChange}
-                    accept=".sqlite,.db,.sqlite3"
-                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700
-hover:file:bg-blue-200"
-                />
 				<div class="flex justify-between items-center">
 					<p class="text-xs mt-2 {$chatStore.dbStatus.color}">{$chatStore.dbStatus.text}</p>
 					{#if $chatStore.dbSchema}
@@ -115,7 +125,7 @@ hover:file:bg-blue-200"
 						{msg.content}
 					{:else}
 						{#if browser}
-							{@html DOMPurify.sanitize(marked.parse(msg.content))}
+							{@html DOMPurify.sanitize(marked.parse(msg.content || ''))}
 						{/if}
 					{/if}
 				</div>
