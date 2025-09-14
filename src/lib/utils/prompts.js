@@ -25,11 +25,11 @@ Analyze the user's question and the provided data to generate a JSON object. You
 3.  **Set the 'type' Field:**
     * Set to "table" if the data has multiple rows.
     * Set to "value" if the data is a single value (one number, name, etc.).
-    * Set to "nodata" if the query returned no results.
+    * Set to "nodata" if the query returned no results or an empty values array.
 4.  **Populate the 'data' Field:**
     * If type is "table", the 'data' field must be an object with "columns" and "values" arrays, matching the query result.
     * If type is "value", the 'data' field must be a string containing a markdown-formatted sentence with the answer (e.g., "The total count is **27**.").
-    * If type is "nodata", the 'data' field must be a string explaining that no results were found.
+    * If type is "nodata", the 'data' field must be a string explaining that no results were found for the query.
 
 ---
 

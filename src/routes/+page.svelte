@@ -1,6 +1,5 @@
 <script>
 	import { onMount, afterUpdate } from 'svelte';
-	// *** FIX: Import 'get' from svelte/store ***
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { chatStore } from '$lib/stores.js';
@@ -8,41 +7,49 @@
 	import { getAIResponse } from '$lib/utils/api.js';
 	import StructuredResponse from '$lib/components/StructuredResponse.svelte';
 
-	// Import the packages directly
 	import { marked } from 'marked';
 	import DOMPurify from 'dompurify';
+
 	let userMessage = '';
 	let schemaVisible = false;
 	let chatContainer;
+
 	onMount(async () => {
-		// Fetch the schema from our new server endpoint
-		try {
-			// *** FIX: Use get(chatStore) to access strings directly ***
-			const strings = get(chatStore).strings;
-			chatStore.setDbStatus(strings.dbReading, 'text-orange-500');
+		async function initializeApp() {
+			try {
+                const strings = uiStrings[get(chatStore).currentLang];
+				chatStore.setDbStatus(strings.dbReading, 'text-orange-500');
 
-			const response = await fetch('/api/db');
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || 'Failed to fetch schema');
+				const response = await fetch('/api/db');
+                const result = await response.json();
+
+				if (!response.ok) {
+					throw new Error(result.error || 'Failed to fetch schema from server.');
+				}
+
+				chatStore.update(s => ({ ...s, dbSchema: result.schema }));
+				chatStore.setDbStatus(strings.dbSuccess(result.tableNames), 'text-green-600');
+
+			} catch (error) {
+				console.error("Initialization Failed:", error);
+                const strings = uiStrings[get(chatStore).currentLang];
+				chatStore.setDbStatus(strings.dbError, 'text-red-600');
+                chatStore.setError(error.message);
 			}
-			const schemaInfo = await response.json();
-			chatStore.update(s => ({ ...s, dbSchema: schemaInfo.schema }));
-
-			// *** FIX: Use the directly accessed 'strings' object ***
-			chatStore.setDbStatus(strings.dbSuccess(schemaInfo.tableNames), 'text-green-600');
-
-		} catch (error) {
-			console.error("Failed to load schema", error);
-			const strings = get(chatStore).strings;
-			chatStore.setDbStatus(strings.dbError, 'text-red-600');
 		}
+
+		initializeApp();
 
         const savedHistory = localStorage.getItem('chatHistory');
         if (savedHistory) {
-            chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory)}));
+            try {
+                chatStore.update(s => ({ ...s, conversationHistory: JSON.parse(savedHistory) }));
+            } catch {
+                localStorage.removeItem('chatHistory'); // Clear corrupted history
+            }
         }
 	});
+
 	afterUpdate(() => {
 		if (chatContainer) {
 			chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -62,23 +69,21 @@
 		const btn = event.currentTarget;
         const originalText = btn.textContent;
         btn.textContent = $chatStore.strings.copied;
-		setTimeout(() => {
-            btn.textContent = originalText;
-        }, 1500);
+		setTimeout(() => { btn.textContent = originalText; }, 1500);
 	}
 
-	$: $chatStore.strings = uiStrings[$chatStore.currentLang];
+	$: strings = uiStrings[$chatStore.currentLang];
 </script>
 
 <svelte:head>
-    <title>{$chatStore.strings.title}</title>
+    <title>{strings.title}</title>
 </svelte:head>
 
 <div class="flex flex-col items-center justify-center min-h-screen p-4">
 	<div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-xl flex flex-col h-[90vh]">
 		<div class="p-4 border-b border-gray-200 text-center rounded-t-2xl bg-gray-50 relative">
-			<h1 class="text-xl font-bold text-gray-800">{$chatStore.strings.title}</h1>
-			<p class="text-sm text-gray-500">{$chatStore.strings.subtitle}</p>
+			<h1 class="text-xl font-bold text-gray-800">{strings.title}</h1>
+			<p class="text-sm text-gray-500">{strings.subtitle}</p>
 			<div class="absolute top-2 right-2 flex space-x-1">
 				<button on:click={() => chatStore.setLanguage('en')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'en'}>EN</button>
 				<button on:click={() => chatStore.setLanguage('de')} class="lang-btn px-3 py-1 text-sm font-medium border rounded-md" class:active={$chatStore.currentLang === 'de'}>DE</button>
@@ -87,17 +92,17 @@
                 </form>
 			</div>
 			<div class="absolute top-2 left-2">
-				<button on:click={chatStore.clearChat} class="px-3 py-1 text-sm font-medium border rounded-md hover:bg-gray-100">{$chatStore.strings.clearChat}</button>
+				<button on:click={chatStore.clearChat} class="px-3 py-1 text-sm font-medium border rounded-md hover:bg-gray-100">{strings.clearChat}</button>
 			</div>
 		</div>
 
-		<div class="p-4 border-b border-gray-200 space-y-4">
+		<div class="p-4 border-b border-gray-200">
 			<div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
 				<div class="flex justify-between items-center">
-					<p class="text-xs mt-2 {$chatStore.dbStatus.color}">{$chatStore.dbStatus.text}</p>
+					<p class="text-sm font-medium {$chatStore.dbStatus.color}">{$chatStore.dbStatus.text}</p>
 					{#if $chatStore.dbSchema}
-						<button on:click={() => schemaVisible = !schemaVisible} class="text-xs text-blue-600 hover:underline mt-2">
-							{schemaVisible ? $chatStore.strings.hideSchema : $chatStore.strings.viewSchema}
+						<button on:click={() => schemaVisible = !schemaVisible} class="text-sm text-blue-600 hover:underline">
+							{schemaVisible ? strings.hideSchema : strings.viewSchema}
 						</button>
 					{/if}
 				</div>
@@ -115,7 +120,7 @@
                     {#if msg.type === 'typing'}
                         <div class="typing-indicator"><span></span><span></span><span></span></div>
 					{:else if msg.type === 'code'}
-						<button class="copy-btn" on:click={(e) => handleCopy(msg.content, e)}>{$chatStore.strings.copy}</button>
+						<button class="copy-btn" on:click={(e) => handleCopy(msg.content, e)}>{strings.copy}</button>
 						<pre><code>{msg.content}</code></pre>
 					{:else if msg.type === 'image'}
 						<img src={msg.content} alt="Generated" class="rounded-lg"/>
@@ -132,25 +137,34 @@
 			{/each}
 		</div>
 
+        {#if $chatStore.error}
+            <div class="p-4 border-t border-gray-200">
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                    <strong class="font-bold">Error:</strong>
+                    <span class="block sm:inline ml-2">{$chatStore.error}</span>
+                </div>
+            </div>
+        {/if}
+
 		<div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
 			<form on:submit|preventDefault={handleSubmit} class="flex items-center space-x-3">
 				<input
 					type="text"
 					bind:value={userMessage}
-					class="flex-grow w-full p-3 border border-gray-300 rounded-full"
+					class="flex-grow w-full p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
 					autocomplete="off"
-					placeholder={$chatStore.strings.inputPlaceholder}
+					placeholder={strings.inputPlaceholder}
 					disabled={$chatStore.isModelRunning}
 				/>
 				<button
 					type="submit"
-					class="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center w-12 h-12"
-					disabled={$chatStore.isModelRunning}
+					class="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center w-12 h-12 transition-colors"
+					disabled={$chatStore.isModelRunning || !$chatStore.dbSchema}
 				>
                     {#if $chatStore.isModelRunning}
                         <svg class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                    {:else}
-					    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+					    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     {/if}
 				</button>
 			</form>
