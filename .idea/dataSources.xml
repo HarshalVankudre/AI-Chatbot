@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="my-database@34.159.129.130" uuid="9b869831-7ff9-4fcf-93cb-50d8f3693962">
+    <data-source source="LOCAL" name="my-database@34.159.129.130 [2]" uuid="c21096c4-d596-478b-9426-a0aaecd561b0">
       <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
       <jdbc-url>jdbc:mysql://34.159.129.130:3306/my-database</jdbc-url>
-      <jdbc-additional-properties>
-        <property name="EXTERNAL_DATA_PATH" value="C:\Users\harsh\PycharmProjects\AI-Chatbot\external-data-my_database_34_159_129_130.xml" />
-      </jdbc-additional-properties>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>
